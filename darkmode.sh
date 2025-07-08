@@ -22,7 +22,6 @@ read confirmation
 
 if [ "$confirmation" != "y" ]; then
     echo -e "${GREEN}Install dibatalkan. Tidak ada perubahan dalam ubuntu server anda.${NC}"
-    /tmp/install.sh
     exit 1
 fi
 for ((i = 5; i >= 1; i--)); do
@@ -51,7 +50,21 @@ if ! check_node_version; then
     echo -e "${GREEN}================== Menginstall NodeJS ==================${NC}"
     curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash -
     sudo apt-get install -y nodejs
-    echo -e "${GREEN}================== Sukses NodeJS ==================${NC}"
+    
+    # Verify installation
+    if command -v node > /dev/null 2>&1 && command -v npm > /dev/null 2>&1; then
+        NODE_VERSION=$(node -v)
+        NPM_VERSION=$(npm -v)
+        echo -e "${GREEN}NodeJS version: $NODE_VERSION${NC}"
+        echo -e "${GREEN}NPM version: $NPM_VERSION${NC}"
+        echo -e "${GREEN}================== Sukses NodeJS ==================${NC}"
+    else
+        echo -e "${RED}NodeJS gagal diinstall. Mencoba metode alternatif...${NC}"
+        # Alternative installation method
+        curl -fsSL https://deb.nodesource.com/setup_18.x | sudo bash -
+        sudo apt-get install -y nodejs
+        echo -e "${GREEN}================== Sukses NodeJS (Alternative) ==================${NC}"
+    fi
 else
     NODE_VERSION=$(node -v | cut -d 'v' -f 2)
     echo -e "${GREEN}============================================================================${NC}"
@@ -60,27 +73,57 @@ else
 fi
 
 #MongoDB
-if !  systemctl is-active --quiet mongod; then
+if ! systemctl is-active --quiet mongod; then
     echo -e "${GREEN}================== Menginstall MongoDB ==================${NC}"
-    curl -fsSL https://www.mongodb.org/static/pgp/server-4.4.asc | apt-key add -
-    apt-key list
-    echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/4.4 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-4.4.list
+    
+    # Fix GPG key issue
+    wget -qO - https://www.mongodb.org/static/pgp/server-4.4.asc | sudo apt-key add -
+    
+    # Alternative method if above fails
+    if [ $? -ne 0 ]; then
+        echo -e "${GREEN}Mencoba metode alternatif untuk GPG key...${NC}"
+        curl -fsSL https://www.mongodb.org/static/pgp/server-4.4.asc | gpg --dearmor -o /usr/share/keyrings/mongodb-server-4.4.gpg
+        echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-4.4.gpg ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/4.4 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-4.4.list
+    else
+        echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/4.4 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-4.4.list
+    fi
+    
     apt update
     apt install mongodb-org -y
-    systemctl start mongod.service
-    systemctl start mongod
-    systemctl enable mongod
-    mongo --eval 'db.runCommand({ connectionStatus: 1 })'
-    echo -e "${GREEN}================== Sukses MongoDB ==================${NC}"
+    
+    # Check if MongoDB was installed successfully
+    if command -v mongod > /dev/null 2>&1; then
+        systemctl start mongod.service
+        systemctl enable mongod
+        systemctl status mongod --no-pager
+        echo -e "${GREEN}================== Sukses MongoDB ==================${NC}"
+    else
+        echo -e "${RED}MongoDB gagal diinstall. Mencoba metode alternatif...${NC}"
+        # Try installing from Ubuntu repository
+        apt install mongodb -y
+        systemctl start mongodb
+        systemctl enable mongodb
+        echo -e "${GREEN}================== Sukses MongoDB (Ubuntu repo) ==================${NC}"
+    fi
 else
     echo -e "${GREEN}============================================================================${NC}"
     echo -e "${GREEN}=================== mongodb sudah terinstall sebelumnya. ===================${NC}"
 fi
 
 #GenieACS
-if !  systemctl is-active --quiet genieacs-{cwmp,fs,ui,nbi}; then
+if ! systemctl is-active --quiet genieacs-{cwmp,fs,ui,nbi}; then
     echo -e "${GREEN}================== Menginstall genieACS CWMP, FS, NBI, UI ==================${NC}"
-    npm install -g genieacs@1.2.13
+    
+    # Check if npm is available
+    if command -v npm > /dev/null 2>&1; then
+        npm install -g genieacs@1.2.13
+    else
+        echo -e "${RED}npm tidak tersedia. Mencoba install NodeJS...${NC}"
+        curl -fsSL https://deb.nodesource.com/setup_18.x | sudo bash -
+        sudo apt-get install -y nodejs
+        npm install -g genieacs@1.2.13
+    fi
+    
     useradd --system --no-create-home --user-group genieacs || true
     mkdir -p /opt/genieacs
     mkdir -p /opt/genieacs/ext
@@ -185,14 +228,35 @@ echo -e "${GREEN}===============================================================
 echo -e "${GREEN}========== GenieACS UI akses port 3000. : http://$local_ip:3000 ============${NC}"
 echo -e "${GREEN}=================== Informasi: Whatsapp 081947215703 =======================${NC}"
 echo -e "${GREEN}============================================================================${NC}"
-cp -r app-LU66VFYW.css /usr/lib/node_modules/genieacs/public/
-cp -r logo-3976e73d.svg /usr/lib/node_modules/genieacs/public/
+
+# Copy custom files if they exist
+if [ -f "app-LU66VFYW.css" ]; then
+    if [ -d "/usr/lib/node_modules/genieacs/public" ]; then
+        cp -r app-LU66VFYW.css /usr/lib/node_modules/genieacs/public/
+        echo -e "${GREEN}File CSS berhasil disalin${NC}"
+    else
+        echo -e "${RED}Folder /usr/lib/node_modules/genieacs/public tidak ditemukan${NC}"
+    fi
+else
+    echo -e "${RED}File app-LU66VFYW.css tidak ditemukan${NC}"
+fi
+
+if [ -f "logo-3976e73d.svg" ]; then
+    if [ -d "/usr/lib/node_modules/genieacs/public" ]; then
+        cp -r logo-3976e73d.svg /usr/lib/node_modules/genieacs/public/
+        echo -e "${GREEN}File logo berhasil disalin${NC}"
+    else
+        echo -e "${RED}Folder /usr/lib/node_modules/genieacs/public tidak ditemukan${NC}"
+    fi
+else
+    echo -e "${RED}File logo-3976e73d.svg tidak ditemukan${NC}"
+fi
+
 echo -e "${GREEN}Sekarang install parameter. Apakah anda ingin melanjutkan? (y/n)${NC}"
 read confirmation
 
 if [ "$confirmation" != "y" ]; then
     echo -e "${GREEN}Install dibatalkan..${NC}"
-    
     exit 1
 fi
 for ((i = 5; i >= 1; i--)); do
@@ -200,26 +264,35 @@ for ((i = 5; i >= 1; i--)); do
     echo "Lanjut Install Parameter $i. Tekan ctrl+c untuk membatalkan"
 done
 
-mkdir /root/db
-cp cache.bson /root/db
-cp cache.metadata.json /root/db
-cp config.bson /root/db
-cp config.metadata.json /root/db
-cp permissions.bson /root/db
-cp permissions.json /root/db
-cp presets.bson /root/db
-cp presets.metadata.json /root/db
-cp provisions.bson /root/db
-cp profisions.metadata.json /root/db
-cp users.bson /root/db
-cp users.metadata.json /root/db
-cp tasks.bson /root/db
-cp tasks.metadata.json /root/db
-cp virtualParameters.bson /root/db
-cp virtualParameters.metadata.json /root/db
-cd 
-sudo mongodump --db=genieacs --out genieacs-backup
-mongorestore --db genieacs --drop /root/db
+# Check if mongodump is available
+if command -v mongodump > /dev/null 2>&1; then
+    sudo mongodump --db=genieacs --out genieacs-backup
+    echo -e "${GREEN}Backup database berhasil dibuat${NC}"
+else
+    echo -e "${RED}mongodump tidak tersedia, skip backup${NC}"
+fi
+
+# Check if genieacs folder exists
+if [ -d "genieacs" ]; then
+    cd genieacs
+    
+    # Check if db folder exists
+    if [ -d "db" ]; then
+        if command -v mongorestore > /dev/null 2>&1; then
+            mongorestore --db genieacs --drop ./db
+            echo -e "${GREEN}Database berhasil di-restore${NC}"
+        else
+            echo -e "${RED}mongorestore tidak tersedia, skip restore${NC}"
+        fi
+    else
+        echo -e "${RED}Folder db tidak ditemukan di dalam folder genieacs${NC}"
+    fi
+    
+    cd ..
+else
+    echo -e "${RED}Folder genieacs tidak ditemukan${NC}"
+fi
+
 echo -e "${GREEN}============================================================================${NC}"
 echo -e "${GREEN}=================== VIRTUAL PARAMETER BERHASIL DI INSTALL. =================${NC}"
 echo -e "${GREEN}===Jika ACS URL berbeda, silahkan edit di Admin >> Provosions >> inform ====${NC}"
@@ -227,5 +300,186 @@ echo -e "${GREEN}========== GenieACS UI akses port 3000. : http://$local_ip:3000
 echo -e "${GREEN}=================== Informasi: Whatsapp 081947215703 =======================${NC}"
 echo -e "${GREEN}============================================================================${NC}"
 
-cd
-sudo rm -r genieacs
+# Install aplikasi dari folder app-customer
+echo -e "${GREEN}Sekarang install aplikasi customer. Apakah anda ingin melanjutkan? (y/n)${NC}"
+read confirmation
+
+if [ "$confirmation" != "y" ]; then
+    echo -e "${GREEN}Install aplikasi customer dibatalkan..${NC}"
+    exit 1
+fi
+
+for ((i = 5; i >= 1; i--)); do
+    sleep 1
+    echo "Lanjut Install Aplikasi Customer $i. Tekan ctrl+c untuk membatalkan"
+done
+
+# Input nama perusahaan
+echo -e "${GREEN}Masukkan nama perusahaan untuk header aplikasi:${NC}"
+echo -e "${GREEN}Contoh: ALIJAYA BOT MANAGEMENT ISP${NC}"
+read -p "Nama Perusahaan: " company_name
+
+# Jika kosong, gunakan default
+if [ -z "$company_name" ]; then
+    company_name="ALIJAYA BOT MANAGEMENT ISP"
+    echo -e "${GREEN}Menggunakan nama default: $company_name${NC}"
+fi
+
+# Cek apakah folder app-customer ada
+if [ -d "app-customer" ]; then
+    echo -e "${GREEN}================== Menginstall Aplikasi Customer ==================${NC}"
+    cd app-customer
+    
+    # Install dependencies
+    if [ -f "package.json" ]; then
+        # Check if npm is available
+        if command -v npm > /dev/null 2>&1; then
+            echo -e "${GREEN}Installing dependencies...${NC}"
+            npm install
+            echo -e "${GREEN}Dependencies berhasil diinstall${NC}"
+        else
+            echo -e "${RED}npm tidak tersedia. Pastikan NodeJS terinstall dengan benar.${NC}"
+            echo -e "${RED}Mencoba install NodeJS...${NC}"
+            curl -fsSL https://deb.nodesource.com/setup_18.x | sudo bash -
+            sudo apt-get install -y nodejs
+            if command -v npm > /dev/null 2>&1; then
+                echo -e "${GREEN}Installing dependencies...${NC}"
+                npm install
+                echo -e "${GREEN}Dependencies berhasil diinstall${NC}"
+            else
+                echo -e "${RED}npm masih tidak tersedia. Skip install dependencies.${NC}"
+            fi
+        fi
+        
+        # Update settings.json dengan IP GenieACS dan nama perusahaan
+        if [ -f "settings.json" ]; then
+            echo -e "${GREEN}Mengupdate settings.json...${NC}"
+            # Backup settings.json
+            cp settings.json settings.json.backup
+            
+            # Update genieacs_url dan company_header
+            if command -v jq > /dev/null 2>&1; then
+                # Menggunakan jq untuk update JSON
+                jq --arg url "http://$local_ip:7557" --arg company "$company_name" '.genieacs_url = $url | .company_header = $company' settings.json > settings.json.tmp && mv settings.json.tmp settings.json
+            else
+                # Fallback menggunakan sed jika jq tidak tersedia
+                sed -i "s|\"genieacs_url\": \"[^\"]*\"|\"genieacs_url\": \"http://$local_ip:7557\"|g" settings.json
+                sed -i "s|\"company_header\": \"[^\"]*\"|\"company_header\": \"$company_name\"|g" settings.json
+            fi
+            echo -e "${GREEN}GenieACS URL berhasil diupdate: http://$local_ip:7557${NC}"
+            echo -e "${GREEN}Nama perusahaan berhasil diupdate: $company_name${NC}"
+        else
+            echo -e "${RED}settings.json tidak ditemukan di folder app-customer${NC}"
+        fi
+        
+        # Baca pengaturan dari settings.json
+        PORT=3001  # Default port
+        if [ -f "settings.json" ]; then
+            echo -e "${GREEN}Membaca pengaturan dari settings.json...${NC}"
+            # Extract port dari settings.json menggunakan jq atau sed
+            if command -v jq > /dev/null 2>&1; then
+                PORT=$(jq -r '.server_port // 3001' settings.json)
+            else
+                # Fallback menggunakan sed jika jq tidak tersedia
+                PORT=$(grep -o '"server_port"[[:space:]]*:[[:space:]]*[0-9]*' settings.json | sed 's/.*:[[:space:]]*//' || echo "3001")
+            fi
+            echo -e "${GREEN}Port yang digunakan: $PORT${NC}"
+        else
+            echo -e "${GREEN}settings.json tidak ditemukan, menggunakan port default: $PORT${NC}"
+        fi
+        
+        # Buat systemd service untuk auto-restart
+        cat << EOF > /etc/systemd/system/app-customer.service
+[Unit]
+Description=App Customer Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=$(pwd)
+ExecStart=/usr/bin/npm start
+Restart=always
+RestartSec=10
+Environment=NODE_ENV=production
+Environment=PORT=$PORT
+
+[Install]
+WantedBy=multi-user.target
+EOF
+        
+        # Reload systemd dan enable service
+        systemctl daemon-reload
+        systemctl enable app-customer.service
+        systemctl start app-customer.service
+        
+        echo -e "${GREEN}Service app-customer berhasil dibuat dan dijalankan${NC}"
+        echo -e "${GREEN}Status service: $(systemctl is-active app-customer.service)${NC}"
+        echo -e "${GREEN}App Customer berjalan di port: $PORT${NC}"
+        echo -e "${GREEN}Akses: http://$local_ip:$PORT${NC}"
+        echo -e "${GREEN}GenieACS URL: http://$local_ip:7557${NC}"
+    else
+        echo -e "${RED}package.json tidak ditemukan di folder app-customer${NC}"
+    fi
+    
+    cd ..
+    echo -e "${GREEN}================== Sukses Install Aplikasi Customer ==================${NC}"
+else
+    echo -e "${RED}Folder app-customer tidak ditemukan.${NC}"
+fi
+
+echo -e "${GREEN}============================================================================${NC}"
+echo -e "${GREEN}=================== INSTALASI SELESAI =================${NC}"
+echo -e "${GREEN}========== GenieACS UI akses port 3000. : http://$local_ip:3000 ============${NC}"
+echo -e "${GREEN}=================== Informasi: Whatsapp 081947215703 =======================${NC}"
+echo -e "${GREEN}============================================================================${NC}"
+
+# Status check
+echo -e "${GREEN}=================== STATUS INSTALASI =================${NC}"
+echo -e "${GREEN}Mengecek status instalasi...${NC}"
+
+# Check NodeJS
+if command -v node > /dev/null 2>&1; then
+    echo -e "${GREEN}✓ NodeJS: $(node -v)${NC}"
+else
+    echo -e "${RED}✗ NodeJS: Tidak terinstall${NC}"
+fi
+
+# Check NPM
+if command -v npm > /dev/null 2>&1; then
+    echo -e "${GREEN}✓ NPM: $(npm -v)${NC}"
+else
+    echo -e "${RED}✗ NPM: Tidak terinstall${NC}"
+fi
+
+# Check MongoDB
+if command -v mongod > /dev/null 2>&1; then
+    echo -e "${GREEN}✓ MongoDB: Terinstall${NC}"
+    if systemctl is-active --quiet mongod; then
+        echo -e "${GREEN}✓ MongoDB Service: Aktif${NC}"
+    else
+        echo -e "${RED}✗ MongoDB Service: Tidak aktif${NC}"
+    fi
+else
+    echo -e "${RED}✗ MongoDB: Tidak terinstall${NC}"
+fi
+
+# Check GenieACS services
+services=("genieacs-cwmp" "genieacs-fs" "genieacs-ui" "genieacs-nbi")
+for service in "${services[@]}"; do
+    if systemctl is-active --quiet $service; then
+        echo -e "${GREEN}✓ $service: Aktif${NC}"
+    else
+        echo -e "${RED}✗ $service: Tidak aktif${NC}"
+    fi
+done
+
+# Check app-customer service
+if systemctl is-active --quiet app-customer; then
+    echo -e "${GREEN}✓ app-customer: Aktif${NC}"
+else
+    echo -e "${RED}✗ app-customer: Tidak aktif${NC}"
+fi
+
+echo -e "${GREEN}=================== END STATUS =================${NC}"
+
