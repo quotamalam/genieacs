@@ -48,6 +48,29 @@ check_node_version() {
 
 if ! check_node_version; then
     echo -e "${GREEN}================== Menginstall NodeJS ==================${NC}"
+    
+    # Check if NodeJS is already installed with lower version
+    if command -v node > /dev/null 2>&1; then
+        CURRENT_VERSION=$(node -v)
+        echo -e "${GREEN}NodeJS versi lama terdeteksi: $CURRENT_VERSION${NC}"
+        echo -e "${GREEN}Menghapus versi lama dan menginstall NodeJS v20...${NC}"
+        
+        # Remove old NodeJS
+        apt-get remove -y nodejs npm
+        apt-get autoremove -y
+        apt-get autoclean
+        
+        # Remove NodeJS from different sources
+        rm -rf /usr/local/bin/npm /usr/local/bin/node
+        rm -rf /usr/bin/npm /usr/bin/node
+        rm -rf ~/.npm
+        rm -rf /usr/local/lib/node_modules
+        rm -rf /usr/lib/node_modules
+        
+        echo -e "${GREEN}NodeJS versi lama berhasil dihapus${NC}"
+    fi
+    
+    # Install NodeJS v20
     curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash -
     sudo apt-get install -y nodejs
     
@@ -67,40 +90,143 @@ if ! check_node_version; then
     fi
 else
     NODE_VERSION=$(node -v | cut -d 'v' -f 2)
-    echo -e "${GREEN}============================================================================${NC}"
-    echo -e "${GREEN}============== NodeJS sudah terinstall versi ${NODE_VERSION}. ==============${NC}"
-    echo -e "${GREEN}========================= Lanjut install GenieACS ==========================${NC}"
+    NODE_MAJOR_VERSION=$(echo $NODE_VERSION | cut -d '.' -f 1)
+    
+    # Check if current version is lower than v20
+    if [ "$NODE_MAJOR_VERSION" -lt 20 ]; then
+        echo -e "${GREEN}============================================================================${NC}"
+        echo -e "${GREEN}============== NodeJS versi ${NODE_VERSION} terdeteksi ==============${NC}"
+        echo -e "${GREEN}============== Versi lebih rendah dari v20, akan diupgrade ==============${NC}"
+        echo -e "${GREEN}Menghapus versi lama dan menginstall NodeJS v20...${NC}"
+        
+        # Remove old NodeJS
+        apt-get remove -y nodejs npm
+        apt-get autoremove -y
+        apt-get autoclean
+        
+        # Remove NodeJS from different sources
+        rm -rf /usr/local/bin/npm /usr/local/bin/node
+        rm -rf /usr/bin/npm /usr/bin/node
+        rm -rf ~/.npm
+        rm -rf /usr/local/lib/node_modules
+        rm -rf /usr/lib/node_modules
+        
+        echo -e "${GREEN}NodeJS versi lama berhasil dihapus${NC}"
+        
+        # Install NodeJS v20
+        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash -
+        sudo apt-get install -y nodejs
+        
+        # Verify installation
+        if command -v node > /dev/null 2>&1 && command -v npm > /dev/null 2>&1; then
+            NODE_VERSION=$(node -v)
+            NPM_VERSION=$(npm -v)
+            echo -e "${GREEN}NodeJS version: $NODE_VERSION${NC}"
+            echo -e "${GREEN}NPM version: $NPM_VERSION${NC}"
+            echo -e "${GREEN}================== Sukses Upgrade NodeJS ==================${NC}"
+        else
+            echo -e "${RED}Upgrade NodeJS gagal. Mencoba metode alternatif...${NC}"
+            # Alternative installation method
+            curl -fsSL https://deb.nodesource.com/setup_18.x | sudo bash -
+            sudo apt-get install -y nodejs
+            echo -e "${GREEN}================== Sukses NodeJS (Alternative) ==================${NC}"
+        fi
+    else
+        echo -e "${GREEN}============================================================================${NC}"
+        echo -e "${GREEN}============== NodeJS sudah terinstall versi ${NODE_VERSION}. ==============${NC}"
+        echo -e "${GREEN}========================= Lanjut install GenieACS ==========================${NC}"
+    fi
 fi
 
 #MongoDB
 if ! systemctl is-active --quiet mongod; then
     echo -e "${GREEN}================== Menginstall MongoDB ==================${NC}"
     
-    # Fix GPG key issue
-    wget -qO - https://www.mongodb.org/static/pgp/server-4.4.asc | sudo apt-key add -
+    # Function to troubleshoot MongoDB
+    troubleshoot_mongodb() {
+        echo -e "${GREEN}Mencoba troubleshoot MongoDB...${NC}"
+        
+        # Check if data directory exists and has correct permissions
+        if [ ! -d "/var/lib/mongodb" ]; then
+            mkdir -p /var/lib/mongodb
+            chown mongodb:mongodb /var/lib/mongodb
+            chmod 755 /var/lib/mongodb
+        fi
+        
+        # Check if log directory exists
+        if [ ! -d "/var/log/mongodb" ]; then
+            mkdir -p /var/log/mongodb
+            chown mongodb:mongodb /var/log/mongodb
+        fi
+        
+        # Try to start MongoDB again
+        systemctl start mongod
+        sleep 3
+        
+        if systemctl is-active --quiet mongod; then
+            echo -e "${GREEN}MongoDB berhasil start setelah troubleshoot${NC}"
+            return 0
+        else
+            echo -e "${RED}MongoDB masih gagal setelah troubleshoot${NC}"
+            return 1
+        fi
+    }
     
-    # Alternative method if above fails
-    if [ $? -ne 0 ]; then
-        echo -e "${GREEN}Mencoba metode alternatif untuk GPG key...${NC}"
-        curl -fsSL https://www.mongodb.org/static/pgp/server-4.4.asc | gpg --dearmor -o /usr/share/keyrings/mongodb-server-4.4.gpg
-        echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-4.4.gpg ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/4.4 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-4.4.list
-    else
-        echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/4.4 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-4.4.list
-    fi
+    # Remove any existing MongoDB repository files
+    rm -f /etc/apt/sources.list.d/mongodb-org-*.list
+    rm -f /etc/apt/sources.list.d/mongodb*.list
     
+    # Import MongoDB GPG key using modern method
+    echo -e "${GREEN}Mengimport GPG key MongoDB...${NC}"
+    curl -fsSL https://pgp.mongodb.com/server-6.0.asc | \
+    sudo gpg -o /usr/share/keyrings/mongodb-server-6.0.gpg \
+    --dearmor
+    
+    # Add MongoDB repository for Ubuntu 22.04
+    echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/6.0 multiverse" | \
+    sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
+    
+    # Update package list
     apt update
-    apt install mongodb-org -y
+    
+    # Install MongoDB
+    echo -e "${GREEN}Menginstall MongoDB...${NC}"
+    apt install -y mongodb-org
     
     # Check if MongoDB was installed successfully
     if command -v mongod > /dev/null 2>&1; then
-        systemctl start mongod.service
+        # Start and enable MongoDB
+        systemctl start mongod
         systemctl enable mongod
-        systemctl status mongod --no-pager
-        echo -e "${GREEN}================== Sukses MongoDB ==================${NC}"
+        
+        # Wait a moment for service to start
+        sleep 3
+        
+        # Check service status
+        if systemctl is-active --quiet mongod; then
+            echo -e "${GREEN}MongoDB berhasil diinstall dan berjalan${NC}"
+            systemctl status mongod --no-pager
+            echo -e "${GREEN}================== Sukses MongoDB ==================${NC}"
+        else
+            echo -e "${RED}MongoDB gagal start. Mencoba troubleshoot...${NC}"
+            # Try troubleshoot first
+            if troubleshoot_mongodb; then
+                echo -e "${GREEN}================== Sukses MongoDB (setelah troubleshoot) ==================${NC}"
+            else
+                echo -e "${RED}MongoDB masih gagal. Mencoba metode alternatif...${NC}"
+                # Alternative: Install from Ubuntu repository
+                apt remove -y mongodb-org*
+                apt autoremove -y
+                apt install -y mongodb
+                systemctl start mongodb
+                systemctl enable mongodb
+                echo -e "${GREEN}================== Sukses MongoDB (Ubuntu repo) ==================${NC}"
+            fi
+        fi
     else
         echo -e "${RED}MongoDB gagal diinstall. Mencoba metode alternatif...${NC}"
         # Try installing from Ubuntu repository
-        apt install mongodb -y
+        apt install -y mongodb
         systemctl start mongodb
         systemctl enable mongodb
         echo -e "${GREEN}================== Sukses MongoDB (Ubuntu repo) ==================${NC}"
