@@ -173,7 +173,7 @@ if ! systemctl is-active --quiet mongod; then
         # Detect package manager
         if command -v apt > /dev/null 2>&1; then
             PACKAGE_MANAGER="apt"
-            echo -e "${GREEN}Package manager terdeteksi: APT (Debian/Ubuntu)${NC}"
+            echo -e "${GREEN}Package manager terdeteksi: APT (Debian/Ubuntu/Armbian)${NC}"
         elif command -v yum > /dev/null 2>&1; then
             PACKAGE_MANAGER="yum"
             echo -e "${GREEN}Package manager terdeteksi: YUM (CentOS/RHEL)${NC}"
@@ -185,7 +185,7 @@ if ! systemctl is-active --quiet mongod; then
             PACKAGE_MANAGER="apt"
         fi
         
-        # Detect Ubuntu/Debian version
+        # Detect Ubuntu/Debian/Armbian version
         if [ -f /etc/os-release ]; then
             . /etc/os-release
             OS_NAME=$NAME
@@ -193,42 +193,75 @@ if ! systemctl is-active --quiet mongod; then
             OS_CODENAME=$VERSION_CODENAME
             
             echo -e "${GREEN}OS terdeteksi: $OS_NAME $OS_VERSION ($OS_CODENAME)${NC}"
+            echo -e "${GREEN}PRETTY_NAME: $PRETTY_NAME${NC}"
             
-            # Configure MongoDB repository based on OS
-            case $OS_CODENAME in
-                "focal")  # Ubuntu 20.04
-                    echo -e "${GREEN}Menggunakan repository MongoDB untuk Ubuntu 20.04 (focal)${NC}"
-                    MONGODB_REPO="deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/6.0 multiverse"
-                    ;;
-                "jammy")  # Ubuntu 22.04
-                    echo -e "${GREEN}Menggunakan repository MongoDB untuk Ubuntu 22.04 (jammy)${NC}"
-                    MONGODB_REPO="deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/6.0 multiverse"
-                    ;;
-                "noble")  # Ubuntu 24.04
-                    echo -e "${GREEN}Menggunakan repository MongoDB untuk Ubuntu 24.04 (noble)${NC}"
-                    MONGODB_REPO="deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu noble/mongodb-org/6.0 multiverse"
-                    ;;
-                "oracular")  # Ubuntu 25.04
-                    echo -e "${GREEN}Menggunakan repository MongoDB untuk Ubuntu 25.04 (oracular)${NC}"
-                    MONGODB_REPO="deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu oracular/mongodb-org/6.0 multiverse"
-                    ;;
-                "bullseye")  # Debian 11
-                    echo -e "${GREEN}Menggunakan repository MongoDB untuk Debian 11 (bullseye)${NC}"
-                    MONGODB_REPO="deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/debian bullseye/mongodb-org/6.0 main"
-                    ;;
-                "bookworm")  # Debian 12
-                    echo -e "${GREEN}Menggunakan repository MongoDB untuk Debian 12 (bookworm)${NC}"
+            # Check if it's Armbian
+            if [[ "$OS_NAME" == *"Armbian"* ]] || [[ "$PRETTY_NAME" == *"Armbian"* ]]; then
+                echo -e "${GREEN}Armbian terdeteksi!${NC}"
+                echo -e "${GREEN}Mengecek base distribution...${NC}"
+                # Armbian is based on Debian/Ubuntu, so we need to determine the base
+                if [[ "$OS_CODENAME" == "bookworm" ]] || [[ "$OS_VERSION" == "12"* ]]; then
+                    echo -e "${GREEN}Armbian berbasis Debian 12 (bookworm)${NC}"
                     MONGODB_REPO="deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/debian bookworm/mongodb-org/6.0 main"
-                    ;;
-                *)
-                    echo -e "${RED}OS $OS_NAME $OS_VERSION tidak didukung secara resmi${NC}"
-                    echo -e "${GREEN}Mencoba menggunakan repository Ubuntu jammy sebagai fallback...${NC}"
+                elif [[ "$OS_CODENAME" == "bullseye" ]] || [[ "$OS_VERSION" == "11"* ]]; then
+                    echo -e "${GREEN}Armbian berbasis Debian 11 (bullseye)${NC}"
+                    MONGODB_REPO="deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/debian bullseye/mongodb-org/6.0 main"
+                elif [[ "$OS_CODENAME" == "noble" ]] || [[ "$OS_VERSION" == "24"* ]]; then
+                    echo -e "${GREEN}Armbian berbasis Ubuntu 24.04 (noble)${NC}"
+                    MONGODB_REPO="deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu noble/mongodb-org/6.0 multiverse"
+                elif [[ "$OS_CODENAME" == "jammy" ]] || [[ "$OS_VERSION" == "22"* ]]; then
+                    echo -e "${GREEN}Armbian berbasis Ubuntu 22.04 (jammy)${NC}"
                     MONGODB_REPO="deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/6.0 multiverse"
-                    ;;
-            esac
+                elif [[ "$OS_CODENAME" == "focal" ]] || [[ "$OS_VERSION" == "20"* ]]; then
+                    echo -e "${GREEN}Armbian berbasis Ubuntu 20.04 (focal)${NC}"
+                    MONGODB_REPO="deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/6.0 multiverse"
+                else
+                    echo -e "${GREEN}Armbian dengan versi tidak dikenali, menggunakan Debian bookworm sebagai fallback${NC}"
+                    MONGODB_REPO="deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/debian bookworm/mongodb-org/6.0 main"
+                fi
+            else
+                # Configure MongoDB repository based on OS
+                case $OS_CODENAME in
+                    "focal")  # Ubuntu 20.04
+                        echo -e "${GREEN}Menggunakan repository MongoDB untuk Ubuntu 20.04 (focal)${NC}"
+                        MONGODB_REPO="deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/6.0 multiverse"
+                        ;;
+                    "jammy")  # Ubuntu 22.04
+                        echo -e "${GREEN}Menggunakan repository MongoDB untuk Ubuntu 22.04 (jammy)${NC}"
+                        MONGODB_REPO="deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/6.0 multiverse"
+                        ;;
+                    "noble")  # Ubuntu 24.04
+                        echo -e "${GREEN}Menggunakan repository MongoDB untuk Ubuntu 24.04 (noble)${NC}"
+                        MONGODB_REPO="deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu noble/mongodb-org/6.0 multiverse"
+                        ;;
+                    "oracular")  # Ubuntu 25.04
+                        echo -e "${GREEN}Menggunakan repository MongoDB untuk Ubuntu 25.04 (oracular)${NC}"
+                        MONGODB_REPO="deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu oracular/mongodb-org/6.0 multiverse"
+                        ;;
+                    "bullseye")  # Debian 11
+                        echo -e "${GREEN}Menggunakan repository MongoDB untuk Debian 11 (bullseye)${NC}"
+                        MONGODB_REPO="deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/debian bullseye/mongodb-org/6.0 main"
+                        ;;
+                    "bookworm")  # Debian 12
+                        echo -e "${GREEN}Menggunakan repository MongoDB untuk Debian 12 (bookworm)${NC}"
+                        MONGODB_REPO="deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/debian bookworm/mongodb-org/6.0 main"
+                        ;;
+                    *)
+                        # Check if it's Armbian
+                        if [[ "$OS_NAME" == *"Armbian"* ]] || [[ "$PRETTY_NAME" == *"Armbian"* ]]; then
+                            echo -e "${GREEN}Armbian terdeteksi! Menggunakan repository Debian bookworm${NC}"
+                            MONGODB_REPO="deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/debian bookworm/mongodb-org/6.0 main"
+                        else
+                            echo -e "${RED}OS $OS_NAME $OS_VERSION tidak didukung secara resmi${NC}"
+                            echo -e "${GREEN}Mencoba menggunakan repository Debian bookworm sebagai fallback...${NC}"
+                            MONGODB_REPO="deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/debian bookworm/mongodb-org/6.0 main"
+                        fi
+                        ;;
+                esac
+            fi
         else
-            echo -e "${RED}Tidak dapat mendeteksi OS, menggunakan fallback Ubuntu jammy${NC}"
-            MONGODB_REPO="deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/6.0 multiverse"
+            echo -e "${RED}Tidak dapat mendeteksi OS, menggunakan fallback Debian bookworm${NC}"
+            MONGODB_REPO="deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/debian bookworm/mongodb-org/6.0 main"
         fi
     }
     
@@ -317,11 +350,35 @@ if ! systemctl is-active --quiet mongod; then
         fi
     else
         echo -e "${RED}MongoDB gagal diinstall. Mencoba metode alternatif...${NC}"
-        # Try installing from Ubuntu repository
+        # Try multiple alternative methods
+        echo -e "${GREEN}Mencoba metode alternatif 1: Ubuntu repository...${NC}"
         apt install -y mongodb
-        systemctl start mongodb
-        systemctl enable mongodb
-        echo -e "${GREEN}================== Sukses MongoDB (Ubuntu repo) ==================${NC}"
+        if command -v mongod > /dev/null 2>&1; then
+            systemctl start mongodb
+            systemctl enable mongodb
+            echo -e "${GREEN}================== Sukses MongoDB (Ubuntu repo) ==================${NC}"
+        else
+            echo -e "${GREEN}Mencoba metode alternatif 2: MongoDB Community Edition...${NC}"
+            # Try installing MongoDB Community Edition directly
+            wget -qO - https://www.mongodb.org/static/pgp/server-6.0.asc | sudo apt-key add -
+            echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/6.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
+            apt update
+            apt install -y mongodb-org
+            if command -v mongod > /dev/null 2>&1; then
+                systemctl start mongod
+                systemctl enable mongod
+                echo -e "${GREEN}================== Sukses MongoDB (Community Edition) ==================${NC}"
+            else
+                echo -e "${GREEN}Mencoba metode alternatif 3: Snap installation...${NC}"
+                # Try snap installation as last resort
+                if command -v snap > /dev/null 2>&1; then
+                    snap install mongodb
+                    echo -e "${GREEN}================== Sukses MongoDB (Snap) ==================${NC}"
+                else
+                    echo -e "${RED}Semua metode instalasi MongoDB gagal. Silakan install manual.${NC}"
+                fi
+            fi
+        fi
     fi
 else
     echo -e "${GREEN}============================================================================${NC}"
@@ -779,6 +836,7 @@ echo -e "${GREEN}✓ Ubuntu 24.04 LTS (Noble Numbat)${NC}"
 echo -e "${GREEN}✓ Ubuntu 25.04 (Oracular Ocelot)${NC}"
 echo -e "${GREEN}✓ Debian 11 (Bullseye)${NC}"
 echo -e "${GREEN}✓ Debian 12 (Bookworm)${NC}"
+echo -e "${GREEN}✓ Armbian (berbasis Debian/Ubuntu)${NC}"
 echo -e "${GREEN}✓ CentOS/RHEL 8/9 (dengan modifikasi)${NC}"
 echo -e "${GREEN}=====================================================${NC}"
 
