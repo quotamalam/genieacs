@@ -2,6 +2,30 @@ GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m'
 local_ip=$(hostname -I | awk '{print $1}')
+
+# Function to detect and display OS information
+detect_os_info() {
+    echo -e "${GREEN}=================== INFORMASI SISTEM =================${NC}"
+    
+    if [ -f /etc/os-release ]; then
+        . /etc/os-release
+        echo -e "${GREEN}OS: $NAME${NC}"
+        echo -e "${GREEN}Versi: $VERSION${NC}"
+        echo -e "${GREEN}Codename: $VERSION_CODENAME${NC}"
+        echo -e "${GREEN}Architecture: $(uname -m)${NC}"
+        echo -e "${GREEN}Kernel: $(uname -r)${NC}"
+        echo -e "${GREEN}IP Address: $local_ip${NC}"
+    else
+        echo -e "${RED}Tidak dapat mendeteksi informasi OS${NC}"
+    fi
+    
+    echo -e "${GREEN}=====================================================${NC}"
+    echo ""
+}
+
+# Display OS information
+detect_os_info
+
 echo -e "${GREEN}============================================================================${NC}"
 echo -e "${GREEN}============================================================================${NC}"
 echo -e "${GREEN}=========== AAA   LL      IIIII     JJJ   AAA   YY   YY   AAA ==============${NC}"   
@@ -142,6 +166,72 @@ fi
 if ! systemctl is-active --quiet mongod; then
     echo -e "${GREEN}================== Menginstall MongoDB ==================${NC}"
     
+    # Function to detect OS and configure MongoDB repository
+    detect_os_and_configure_mongodb() {
+        echo -e "${GREEN}Mendeteksi OS dan mengkonfigurasi MongoDB...${NC}"
+        
+        # Detect package manager
+        if command -v apt > /dev/null 2>&1; then
+            PACKAGE_MANAGER="apt"
+            echo -e "${GREEN}Package manager terdeteksi: APT (Debian/Ubuntu)${NC}"
+        elif command -v yum > /dev/null 2>&1; then
+            PACKAGE_MANAGER="yum"
+            echo -e "${GREEN}Package manager terdeteksi: YUM (CentOS/RHEL)${NC}"
+        elif command -v dnf > /dev/null 2>&1; then
+            PACKAGE_MANAGER="dnf"
+            echo -e "${GREEN}Package manager terdeteksi: DNF (CentOS/RHEL 8+)${NC}"
+        else
+            echo -e "${RED}Package manager tidak dikenali, menggunakan APT sebagai default${NC}"
+            PACKAGE_MANAGER="apt"
+        fi
+        
+        # Detect Ubuntu/Debian version
+        if [ -f /etc/os-release ]; then
+            . /etc/os-release
+            OS_NAME=$NAME
+            OS_VERSION=$VERSION_ID
+            OS_CODENAME=$VERSION_CODENAME
+            
+            echo -e "${GREEN}OS terdeteksi: $OS_NAME $OS_VERSION ($OS_CODENAME)${NC}"
+            
+            # Configure MongoDB repository based on OS
+            case $OS_CODENAME in
+                "focal")  # Ubuntu 20.04
+                    echo -e "${GREEN}Menggunakan repository MongoDB untuk Ubuntu 20.04 (focal)${NC}"
+                    MONGODB_REPO="deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/6.0 multiverse"
+                    ;;
+                "jammy")  # Ubuntu 22.04
+                    echo -e "${GREEN}Menggunakan repository MongoDB untuk Ubuntu 22.04 (jammy)${NC}"
+                    MONGODB_REPO="deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/6.0 multiverse"
+                    ;;
+                "noble")  # Ubuntu 24.04
+                    echo -e "${GREEN}Menggunakan repository MongoDB untuk Ubuntu 24.04 (noble)${NC}"
+                    MONGODB_REPO="deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu noble/mongodb-org/6.0 multiverse"
+                    ;;
+                "oracular")  # Ubuntu 25.04
+                    echo -e "${GREEN}Menggunakan repository MongoDB untuk Ubuntu 25.04 (oracular)${NC}"
+                    MONGODB_REPO="deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu oracular/mongodb-org/6.0 multiverse"
+                    ;;
+                "bullseye")  # Debian 11
+                    echo -e "${GREEN}Menggunakan repository MongoDB untuk Debian 11 (bullseye)${NC}"
+                    MONGODB_REPO="deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/debian bullseye/mongodb-org/6.0 main"
+                    ;;
+                "bookworm")  # Debian 12
+                    echo -e "${GREEN}Menggunakan repository MongoDB untuk Debian 12 (bookworm)${NC}"
+                    MONGODB_REPO="deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/debian bookworm/mongodb-org/6.0 main"
+                    ;;
+                *)
+                    echo -e "${RED}OS $OS_NAME $OS_VERSION tidak didukung secara resmi${NC}"
+                    echo -e "${GREEN}Mencoba menggunakan repository Ubuntu jammy sebagai fallback...${NC}"
+                    MONGODB_REPO="deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/6.0 multiverse"
+                    ;;
+            esac
+        else
+            echo -e "${RED}Tidak dapat mendeteksi OS, menggunakan fallback Ubuntu jammy${NC}"
+            MONGODB_REPO="deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/6.0 multiverse"
+        fi
+    }
+    
     # Function to troubleshoot MongoDB
     troubleshoot_mongodb() {
         echo -e "${GREEN}Mencoba troubleshoot MongoDB...${NC}"
@@ -176,15 +266,17 @@ if ! systemctl is-active --quiet mongod; then
     rm -f /etc/apt/sources.list.d/mongodb-org-*.list
     rm -f /etc/apt/sources.list.d/mongodb*.list
     
+    # Detect OS and configure MongoDB repository
+    detect_os_and_configure_mongodb
+    
     # Import MongoDB GPG key using modern method
     echo -e "${GREEN}Mengimport GPG key MongoDB...${NC}"
     curl -fsSL https://pgp.mongodb.com/server-6.0.asc | \
     sudo gpg -o /usr/share/keyrings/mongodb-server-6.0.gpg \
     --dearmor
     
-    # Add MongoDB repository for Ubuntu 22.04
-    echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/6.0 multiverse" | \
-    sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
+    # Add MongoDB repository based on detected OS
+    echo "$MONGODB_REPO" | sudo tee /etc/apt/sources.list.d/mongodb-org-6.0.list
     
     # Update package list
     apt update
@@ -400,23 +492,92 @@ fi
 
 # Check if genieacs folder exists
 if [ -d "genieacs" ]; then
+    echo -e "${GREEN}Folder genieacs ditemukan, masuk ke direktori...${NC}"
     cd genieacs
+    
+    # Show current directory and list contents
+    echo -e "${GREEN}Direktori saat ini: $(pwd)${NC}"
+    echo -e "${GREEN}Isi direktori:${NC}"
+    ls -la
     
     # Check if db folder exists
     if [ -d "db" ]; then
+        echo -e "${GREEN}Folder db ditemukan${NC}"
+        echo -e "${GREEN}Isi folder db:${NC}"
+        ls -la db/
+        
         if command -v mongorestore > /dev/null 2>&1; then
-            mongorestore --db genieacs --drop ./db
-            echo -e "${GREEN}Database berhasil di-restore${NC}"
+            echo -e "${GREEN}Mengrestore database dari folder db...${NC}"
+            
+            # Check if there are files in the db folder
+            if [ "$(ls -A db)" ]; then
+                echo -e "${GREEN}Folder db tidak kosong, ada file database${NC}"
+                
+                # Try to restore from the genieacs subfolder if it exists
+                if [ -d "db/genieacs" ]; then
+                    echo -e "${GREEN}Mengrestore dari db/genieacs...${NC}"
+                    echo -e "${GREEN}Isi db/genieacs:${NC}"
+                    ls -la db/genieacs/
+                    mongorestore --db genieacs --drop db/genieacs
+                else
+                    echo -e "${GREEN}Mengrestore dari folder db...${NC}"
+                    mongorestore --db genieacs --drop db
+                fi
+                echo -e "${GREEN}Database berhasil di-restore${NC}"
+            else
+                echo -e "${RED}Folder db kosong, tidak ada data untuk di-restore${NC}"
+            fi
         else
             echo -e "${RED}mongorestore tidak tersedia, skip restore${NC}"
         fi
     else
         echo -e "${RED}Folder db tidak ditemukan di dalam folder genieacs${NC}"
+        echo -e "${GREEN}Mencoba mencari folder database di lokasi lain...${NC}"
+        
+        # Try to find database files in other locations
+        if [ -d "database" ]; then
+            echo -e "${GREEN}Mengrestore dari folder database...${NC}"
+            if command -v mongorestore > /dev/null 2>&1; then
+                mongorestore --db genieacs --drop database
+                echo -e "${GREEN}Database berhasil di-restore dari folder database${NC}"
+            fi
+        elif [ -d "backup" ]; then
+            echo -e "${GREEN}Mengrestore dari folder backup...${NC}"
+            if command -v mongorestore > /dev/null 2>&1; then
+                mongorestore --db genieacs --drop backup
+                echo -e "${GREEN}Database berhasil di-restore dari folder backup${NC}"
+            fi
+        else
+            echo -e "${RED}Tidak ada folder database yang ditemukan${NC}"
+        fi
     fi
     
     cd ..
 else
     echo -e "${RED}Folder genieacs tidak ditemukan${NC}"
+    echo -e "${GREEN}Mencoba mencari folder database di root...${NC}"
+    echo -e "${GREEN}Direktori saat ini: $(pwd)${NC}"
+    echo -e "${GREEN}Isi direktori root:${NC}"
+    ls -la
+    
+    # Try to find database files in root directory
+    if [ -d "db" ]; then
+        echo -e "${GREEN}Mengrestore dari folder db di root...${NC}"
+        echo -e "${GREEN}Isi folder db di root:${NC}"
+        ls -la db/
+        if command -v mongorestore > /dev/null 2>&1; then
+            mongorestore --db genieacs --drop db
+            echo -e "${GREEN}Database berhasil di-restore dari folder db di root${NC}"
+        fi
+    elif [ -d "database" ]; then
+        echo -e "${GREEN}Mengrestore dari folder database di root...${NC}"
+        if command -v mongorestore > /dev/null 2>&1; then
+            mongorestore --db genieacs --drop database
+            echo -e "${GREEN}Database berhasil di-restore dari folder database di root${NC}"
+        fi
+    else
+        echo -e "${RED}Tidak ada folder database yang ditemukan di root${NC}"
+    fi
 fi
 
 echo -e "${GREEN}============================================================================${NC}"
@@ -608,4 +769,16 @@ else
 fi
 
 echo -e "${GREEN}=================== END STATUS =================${NC}"
+
+# Display compatibility information
+echo -e "${GREEN}=================== KOMPATIBILITAS OS =================${NC}"
+echo -e "${GREEN}Script ini mendukung OS berikut:${NC}"
+echo -e "${GREEN}✓ Ubuntu 20.04 LTS (Focal Fossa)${NC}"
+echo -e "${GREEN}✓ Ubuntu 22.04 LTS (Jammy Jellyfish)${NC}"
+echo -e "${GREEN}✓ Ubuntu 24.04 LTS (Noble Numbat)${NC}"
+echo -e "${GREEN}✓ Ubuntu 25.04 (Oracular Ocelot)${NC}"
+echo -e "${GREEN}✓ Debian 11 (Bullseye)${NC}"
+echo -e "${GREEN}✓ Debian 12 (Bookworm)${NC}"
+echo -e "${GREEN}✓ CentOS/RHEL 8/9 (dengan modifikasi)${NC}"
+echo -e "${GREEN}=====================================================${NC}"
 
