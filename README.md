@@ -12,18 +12,18 @@ git clone https://github.com/alijayanet/genieacs
 cd genieacs
 ```
 ```
-chmod +x install.sh && chmod +x darkmode.sh
+chmod +x Installer-GenieACS.sh && chmod +x darkmode.sh
 ```
 ```
-chmod +x install-stb.sh
+chmod +x Install.sh
 ```
-INSTALL GENIEACS DARK MODE v@1.2.13
+INSTALL GENIEACS DARKMODE + WEBPORTAL PELANGGAN Ubuntu OS 22.04
 ```
 bash darkmode.sh
 ```
-INSTALL STB or RASBERRY v@1.2.13
+INSTALL by Gangtikus.net
 ```
-bash install-stb.sh
+bash Installer-GenieACS.sh
 ```
 INSTALL GENIEACS THEMA ORIGINAL v@1.2.13
 ```
