@@ -17,7 +17,7 @@ chmod +x Installer-GenieACS.sh && chmod +x darkmode.sh
 ```
 chmod +x Install.sh
 ```
-INSTALL GENIEACS DARKMODE + WEBPORTAL PELANGGAN Ubuntu OS 22.04
+INSTALL GENIEACS DARKMODE Ubuntu OS 22.04
 ```
 bash darkmode.sh
 ```
