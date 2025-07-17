@@ -1,5 +1,3 @@
-#!/bin/bash
-url_install='https://srv.ddns.my.id/genieacs/genieacs/'
 GREEN='\033[0;32m'
 RED='\033[0;31m'
 NC='\033[0m'
@@ -32,55 +30,22 @@ for ((i = 5; i >= 1; i--)); do
     echo "Melanjutkan dalam $i. Tekan ctrl+c untuk membatalkan"
 done
 
-#MongoDB
-if ! sudo systemctl is-active --quiet mongod; then
-    curl -s \
-${url_install}\
-mongod.sh | \
-sudo bash
-else
-    echo -e "${GREEN}============================================================================${NC}"
-    echo -e "${GREEN}=================== mongodb sudah terinstall sebelumnya. ===================${NC}"
-fi
-sleep 3
-if ! sudo systemctl is-active --quiet mongod; then
-    sudo rm genieacs/install.sh
-    exit 1
-fi
+echo -e "${YELLOW}Memulai instalasi GenieACS...${RESET}"
+echo "Menginstal Node.js..."
+curl -sL https://deb.nodesource.com/setup_18.x -o nodesource_setup.sh
+bash nodesource_setup.sh
+apt install -y nodejs
+node -v
 
-#NodeJS Install
-check_node_version() {
-    if command -v node > /dev/null 2>&1; then
-        NODE_VERSION=$(node -v | cut -d 'v' -f 2)
-        NODE_MAJOR_VERSION=$(echo $NODE_VERSION | cut -d '.' -f 1)
-        NODE_MINOR_VERSION=$(echo $NODE_VERSION | cut -d '.' -f 2)
+echo "Menginstal MongoDB..."
+curl -fsSL https://www.mongodb.org/static/pgp/server-4.4.asc | apt-key add -
+echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/4.4 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-4.4.list
+apt update
+apt install -y mongodb-org
+systemctl start mongod.service
+systemctl enable mongod
 
-        if [ "$NODE_MAJOR_VERSION" -lt 12 ] || { [ "$NODE_MAJOR_VERSION" -eq 12 ] && [ "$NODE_MINOR_VERSION" -lt 13 ]; } || [ "$NODE_MAJOR_VERSION" -gt 22 ]; then
-            return 1
-        else
-            return 0
-        fi
-    else
-        return 1
-    fi
-}
-
-if ! check_node_version; then
-    curl -s \
-${url_install}\
-nodejs.sh | \
-sudo bash
-else
-    NODE_VERSION=$(node -v | cut -d 'v' -f 2)
-    echo -e "${GREEN}============================================================================${NC}"
-    echo -e "${GREEN}============== NodeJS sudah terinstall versi ${NODE_VERSION}. ==============${NC}"
-    echo -e "${GREEN}========================= Lanjut install GenieACS ==========================${NC}"
-
-fi
-if ! check_node_version; then
-    sudo rm genieacs/install.sh
-    exit 1
-fi
+mongo --eval 'db.runCommand({ connectionStatus: 1 })'
 
 #GenieACS
 if !  systemctl is-active --quiet genieacs-{cwmp,fs,ui,nbi}; then
@@ -190,29 +155,3 @@ echo -e "${GREEN}===============================================================
 echo -e "${GREEN}========== GenieACS UI akses port 3000. : http://$local_ip:3000 ============${NC}"
 echo -e "${GREEN}=================== Informasi: Whatsapp 081947215703 =======================${NC}"
 echo -e "${GREEN}============================================================================${NC}"
-cp -r logo-3976e73d.svg /usr/lib/node_modules/genieacs/public/
-echo -e "${GREEN}Sekarang install parameter. Apakah anda ingin melanjutkan? (y/n)${NC}"
-read confirmation
-
-if [ "$confirmation" != "y" ]; then
-    echo -e "${GREEN}Install dibatalkan..${NC}"
-    
-    exit 1
-fi
-for ((i = 5; i >= 1; i--)); do
-	sleep 1
-    echo "Lanjut Install Parameter $i. Tekan ctrl+c untuk membatalkan"
-done
-
-cd 
-sudo mongodump --db=genieacs --out genieacs-backup
-sudo mongorestore --db=genieacs --drop genieacs
-#Sukses
-echo -e "${GREEN}============================================================================${NC}"
-echo -e "${GREEN}=================== VIRTUAL PARAMETER BERHASIL DI INSTALL. =================${NC}"
-echo -e "${GREEN}===Jika ACS URL berbeda, silahkan edit di Admin >> Provosions >> inform ====${NC}"
-echo -e "${GREEN}========== GenieACS UI akses port 3000. : http://$local_ip:3000 ============${NC}"
-echo -e "${GREEN}=================== Informasi: Whatsapp 081947215703 =======================${NC}"
-echo -e "${GREEN}============================================================================${NC}"
-cd
-sudo rm -r genieacs

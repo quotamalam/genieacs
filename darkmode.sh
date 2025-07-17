@@ -1,180 +1,167 @@
-#!/bin/bash
-
-# Color definitions
-RED='\033[0;31m'
 GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-MAGENTA='\033[0;35m'
-CYAN='\033[0;36m'
-BOLD='\033[1m'
-NC='\033[0m' # No Color
+RED='\033[0;31m'
+NC='\033[0m'
+local_ip=$(hostname -I | awk '{print $1}')
+echo -e "${GREEN}============================================================================${NC}"
+echo -e "${GREEN}============================================================================${NC}"
+echo -e "${GREEN}=========== AAA   LL      IIIII     JJJ   AAA   YY   YY   AAA ==============${NC}"   
+echo -e "${GREEN}========== AAAAA  LL       III      JJJ  AAAAA  YY   YY  AAAAA =============${NC}" 
+echo -e "${GREEN}========= AA   AA LL       III      JJJ AA   AA  YYYYY  AA   AA ============${NC}"
+echo -e "${GREEN}========= AAAAAAA LL       III  JJ  JJJ AAAAAAA   YYY   AAAAAAA ============${NC}"
+echo -e "${GREEN}========= AA   AA LLLLLLL IIIII  JJJJJ  AA   AA   YYY   AA   AA ============${NC}"
+echo -e "${GREEN}============================================================================${NC}"
+echo -e "${GREEN}========================= . Info 081-947-215-703 ===========================${NC}"
+echo -e "${GREEN}============================================================================${NC}"
+echo -e "${GREEN}${NC}"
+echo -e "${GREEN}Autoinstall GenieACS.${NC}"
+echo -e "${GREEN}${NC}"
+echo -e "${GREEN}======================================================================================${NC}"
+echo -e "${RED}${NC}"
+echo -e "${GREEN}Sebelum melanjutkan, silahkan baca terlebih dahulu. Apakah anda ingin melanjutkan? (y/n)${NC}"
+read confirmation
 
-# Function to display spinner
-spinner() {
-    local pid=$1
-    local delay=0.1
-    local spinstr='⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
-    while [ "$(ps a | awk '{print $1}' | grep $pid)" ]; do
-        local temp=${spinstr#?}
-        printf "${CYAN} [%c]  ${NC}" "$spinstr"
-        local spinstr=$temp${spinstr%"$temp"}
-        sleep $delay
-        printf "\b\b\b\b\b\b"
-    done
-    printf "    \b\b\b\b"
-}
-
-# Function to run command with progress
-run_command() {
-    local cmd="$1"
-    local msg="$2"
-    printf "${YELLOW}%-60s${NC}" "$msg..."
-    eval "$cmd" > /dev/null 2>&1 &
-    spinner $!
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}Done${NC}"
-    else
-        echo -e "${RED}Failed${NC}"
-        exit 1
-    fi
-}
-
-# Print banner
-print_banner() {
-    echo -e "${BLUE}${BOLD}"
-    echo -e "${GREEN}============================================================================${NC}"
-    echo -e "${GREEN}==================== Script Install GenieACS All In One. ===================${NC}"
-    echo -e "${GREEN}======================== NodeJS, MongoDB, GenieACS, ========================${NC}"
-    echo -e "${GREEN}===================== By Alijaya-Net. Info 081947215703=====================${NC}"
-    echo -e "${GREEN}============================================================================${NC}"
-    echo -e "${GREEN}Apakah anda ingin melanjutkan? (y/n)${NC}"
-    echo "                                  --- Ubuntu 20.04/22.04 ---"
-    echo "                                      --- By alijaya ---"
-    echo -e "${NC}"
-}
-
-# Check for root access
-if [ "$EUID" -ne 0 ]; then
-    echo -e "${RED}This script must be run as root${NC}"
+if [ "$confirmation" != "y" ]; then
+    echo -e "${GREEN}Install dibatalkan. Tidak ada perubahan dalam ubuntu server anda.${NC}"
+    /tmp/install.sh
     exit 1
 fi
+for ((i = 5; i >= 1; i--)); do
+	sleep 1
+    echo "Melanjutkan dalam $i. Tekan ctrl+c untuk membatalkan"
+done
 
-print_banner
-
-local_ip=$(hostname -I | awk '{print $1}')
-
-total_steps=30
-current_step=0
-
-echo -e "\n${MAGENTA}${BOLD}Starting GenieACS Installation Process${NC}\n"
-
-run_command "apt-get update -y" "Updating system ($(( ++current_step ))/$total_steps)"
-run_command "apt-get install -y curl wget gnupg2 software-properties-common apt-transport-https ca-certificates build-essential git" "Installing basic dependencies ($(( ++current_step ))/$total_steps)"
-
-# Node.js v20.x
+#Install NodeJS
 check_node_version() {
-    if ! command -v node &> /dev/null; then
+    if command -v node > /dev/null 2>&1; then
+        NODE_VERSION=$(node -v | cut -d 'v' -f 2)
+        NODE_MAJOR_VERSION=$(echo $NODE_VERSION | cut -d '.' -f 1)
+        NODE_MINOR_VERSION=$(echo $NODE_VERSION | cut -d '.' -f 2)
+
+        if [ "$NODE_MAJOR_VERSION" -lt 12 ] || { [ "$NODE_MAJOR_VERSION" -eq 12 ] && [ "$NODE_MINOR_VERSION" -lt 13 ]; } || [ "$NODE_MAJOR_VERSION" -gt 22 ]; then
+            return 1
+        else
+            return 0
+        fi
+    else
         return 1
     fi
-    NODE_VERSION=$(node -v | cut -d 'v' -f 2)
-    MAJOR_VERSION=$(echo $NODE_VERSION | cut -d '.' -f 1)
-    if [ $MAJOR_VERSION -lt 20 ]; then
-        return 1
-    fi
-    return 0
 }
+
 if ! check_node_version; then
-    run_command "curl -fsSL https://deb.nodesource.com/setup_20.x | bash -" "Adding Node.js v20.x repository ($(( ++current_step ))/$total_steps)"
-    run_command "apt-get install -y nodejs" "Installing Node.js v20.x ($(( ++current_step ))/$total_steps)"
+    echo -e "${GREEN}================== Menginstall NodeJS ==================${NC}"
+    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo bash -
+    sudo apt-get install -y nodejs
+    echo -e "${GREEN}================== Sukses NodeJS ==================${NC}"
 else
     NODE_VERSION=$(node -v | cut -d 'v' -f 2)
-    echo -e "${GREEN}Node.js v$NODE_VERSION sudah terinstall (>= v20)${NC}"
-    current_step=$((current_step+2))
+    echo -e "${GREEN}============================================================================${NC}"
+    echo -e "${GREEN}============== NodeJS sudah terinstall versi ${NODE_VERSION}. ==============${NC}"
+    echo -e "${GREEN}========================= Lanjut install GenieACS ==========================${NC}"
 fi
 
-run_command "npm install -g npm" "Upgrading npm ($(( ++current_step ))/$total_steps)"
-
-# MongoDB
-ARCH=$(uname -m)
-if ! systemctl is-active --quiet mongod; then
-    case $ARCH in
-        x86_64)
-            if [[ "$(lsb_release -cs)" == "jammy" ]]; then
-              CODENAME="focal"
-            else
-              CODENAME="$(lsb_release -cs)"
-            fi
-            run_command "wget -qO /usr/share/keyrings/mongodb-server-6.0.gpg https://www.mongodb.org/static/pgp/server-6.0.asc" "Downloading MongoDB GPG key ($(( ++current_step ))/$total_steps)"
-            echo "deb [ arch=amd64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu $CODENAME/mongodb-org/6.0 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-6.0.list > /dev/null
-            run_command "apt-get update -y" "Updating package list for MongoDB ($(( ++current_step ))/$total_steps)"
-            run_command "apt-get install -y mongodb-org" "Installing MongoDB ($(( ++current_step ))/$total_steps)"
-            ;;
-        aarch64|arm64)
-            if [[ "$(lsb_release -cs)" == "jammy" ]]; then
-              CODENAME="focal"
-            else
-              CODENAME="$(lsb_release -cs)"
-            fi
-            run_command "wget -qO /usr/share/keyrings/mongodb-server-6.0.gpg https://www.mongodb.org/static/pgp/server-6.0.asc" "Downloading MongoDB GPG key ($(( ++current_step ))/$total_steps)"
-            echo "deb [ arch=arm64 signed-by=/usr/share/keyrings/mongodb-server-6.0.gpg ] https://repo.mongodb.org/apt/ubuntu $CODENAME/mongodb-org/6.0 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-6.0.list > /dev/null
-            run_command "apt-get update -y" "Updating package list for MongoDB ($(( ++current_step ))/$total_steps)"
-            run_command "apt-get install -y mongodb-org" "Installing MongoDB ($(( ++current_step ))/$total_steps)"
-            ;;
-        armv7l|armhf)
-            run_command "apt-get update -y" "Updating package list for MongoDB (ARM32) ($(( ++current_step ))/$total_steps)"
-            run_command "apt-get install -y mongodb" "Installing MongoDB (ARM32) ($(( ++current_step ))/$total_steps)"
-            ;;
-        *)
-            echo -e "${RED}Arsitektur $ARCH tidak didukung untuk MongoDB${NC}"
-            exit 1
-            ;;
-    esac
-    run_command "systemctl start mongod" "Starting MongoDB service ($(( ++current_step ))/$total_steps)"
-    run_command "systemctl enable mongod" "Enabling MongoDB service ($(( ++current_step ))/$total_steps)"
+#MongoDB
+if !  systemctl is-active --quiet mongod; then
+    echo -e "${GREEN}================== Menginstall MongoDB ==================${NC}"
+    curl -fsSL https://www.mongodb.org/static/pgp/server-4.4.asc | apt-key add -
+    apt-key list
+    echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/4.4 multiverse" | tee /etc/apt/sources.list.d/mongodb-org-4.4.list
+    apt update
+    apt install mongodb-org -y
+    systemctl start mongod.service
+    systemctl start mongod
+    systemctl enable mongod
+    mongo --eval 'db.runCommand({ connectionStatus: 1 })'
+    echo -e "${GREEN}================== Sukses MongoDB ==================${NC}"
 else
-    echo -e "${GREEN}MongoDB sudah terinstall sebelumnya.${NC}"
-    current_step=$((current_step+6))
+    echo -e "${GREEN}============================================================================${NC}"
+    echo -e "${GREEN}=================== mongodb sudah terinstall sebelumnya. ===================${NC}"
 fi
 
-# GenieACS
-run_command "npm install -g genieacs@1.2.13" "Installing GenieACS ($(( ++current_step ))/$total_steps)"
-run_command "useradd --system --no-create-home --user-group genieacs || true" "Creating GenieACS user ($(( ++current_step ))/$total_steps)"
-run_command "mkdir -p /opt/genieacs/ext && chown genieacs:genieacs /opt/genieacs/ext" "Creating GenieACS directories ($(( ++current_step ))/$total_steps)"
-
-cat << EOF > /opt/genieacs/genieacs.env
+#GenieACS
+if !  systemctl is-active --quiet genieacs-{cwmp,fs,ui,nbi}; then
+    echo -e "${GREEN}================== Menginstall genieACS CWMP, FS, NBI, UI ==================${NC}"
+    npm install -g genieacs@1.2.13
+    useradd --system --no-create-home --user-group genieacs || true
+    mkdir -p /opt/genieacs
+    mkdir -p /opt/genieacs/ext
+    chown genieacs:genieacs /opt/genieacs/ext
+    cat << EOF > /opt/genieacs/genieacs.env
 GENIEACS_CWMP_ACCESS_LOG_FILE=/var/log/genieacs/genieacs-cwmp-access.log
 GENIEACS_NBI_ACCESS_LOG_FILE=/var/log/genieacs/genieacs-nbi-access.log
 GENIEACS_FS_ACCESS_LOG_FILE=/var/log/genieacs/genieacs-fs-access.log
 GENIEACS_UI_ACCESS_LOG_FILE=/var/log/genieacs/genieacs-ui-access.log
 GENIEACS_DEBUG_FILE=/var/log/genieacs/genieacs-debug.yaml
-NODE_OPTIONS=--enable-source-maps
 GENIEACS_EXT_DIR=/opt/genieacs/ext
+GENIEACS_UI_JWT_SECRET=secret
 EOF
-echo -e "${YELLOW}Creating genieacs.env file ($(( ++current_step ))/$total_steps)${NC}... ${GREEN}Done${NC}"
-
-run_command "node -e \"console.log('GENIEACS_UI_JWT_SECRET=' + require('crypto').randomBytes(128).toString('hex'))\" >> /opt/genieacs/genieacs.env" "Generating JWT secret ($(( ++current_step ))/$total_steps)"
-run_command "chown genieacs:genieacs /opt/genieacs/genieacs.env && chmod 600 /opt/genieacs/genieacs.env" "Setting genieacs.env permissions ($(( ++current_step ))/$total_steps)"
-run_command "mkdir -p /var/log/genieacs && chown genieacs:genieacs /var/log/genieacs" "Creating log directory ($(( ++current_step ))/$total_steps)"
-
-for service in cwmp nbi fs ui; do
-    cat << EOF > /etc/systemd/system/genieacs-$service.service
+    chown genieacs:genieacs /opt/genieacs/genieacs.env
+    chown genieacs. /opt/genieacs -R
+    chmod 600 /opt/genieacs/genieacs.env
+    mkdir -p /var/log/genieacs
+    chown genieacs. /var/log/genieacs
+    # create systemd unit files
+## CWMP
+    cat << EOF > /etc/systemd/system/genieacs-cwmp.service
 [Unit]
-Description=GenieACS $service
+Description=GenieACS CWMP
 After=network.target
 
 [Service]
 User=genieacs
 EnvironmentFile=/opt/genieacs/genieacs.env
-ExecStart=$(command -v genieacs-$service)
+ExecStart=/usr/bin/genieacs-cwmp
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
 EOF
-    echo -e "${YELLOW}Creating genieacs-$service service file ($(( ++current_step ))/$total_steps)${NC}... ${GREEN}Done${NC}"
-done
 
-cat << EOF > /etc/logrotate.d/genieacs
+## NBI
+    cat << EOF > /etc/systemd/system/genieacs-nbi.service
+[Unit]
+Description=GenieACS NBI
+After=network.target
+ 
+[Service]
+User=genieacs
+EnvironmentFile=/opt/genieacs/genieacs.env
+ExecStart=/usr/bin/genieacs-nbi
+ 
+[Install]
+WantedBy=default.target
+EOF
+
+## FS
+    cat << EOF > /etc/systemd/system/genieacs-fs.service
+[Unit]
+Description=GenieACS FS
+After=network.target
+ 
+[Service]
+User=genieacs
+EnvironmentFile=/opt/genieacs/genieacs.env
+ExecStart=/usr/bin/genieacs-fs
+ 
+[Install]
+WantedBy=default.target
+EOF
+
+## UI
+    cat << EOF > /etc/systemd/system/genieacs-ui.service
+[Unit]
+Description=GenieACS UI
+After=network.target
+ 
+[Service]
+User=genieacs
+EnvironmentFile=/opt/genieacs/genieacs.env
+ExecStart=/usr/bin/genieacs-ui
+ 
+[Install]
+WantedBy=default.target
+EOF
+
+# config logrotate
+ cat << EOF > /etc/logrotate.d/genieacs
 /var/log/genieacs/*.log /var/log/genieacs/*.yaml {
     daily
     rotate 30
@@ -183,29 +170,29 @@ cat << EOF > /etc/logrotate.d/genieacs
     dateext
 }
 EOF
-echo -e "${YELLOW}Creating logrotate configuration ($(( ++current_step ))/$total_steps)${NC}... ${GREEN}Done${NC}"
+    echo -e "${GREEN}========== Install APP GenieACS selesai... ==============${NC}"
+    systemctl daemon-reload
+    systemctl enable --now genieacs-{cwmp,fs,ui,nbi}
+    systemctl start genieacs-{cwmp,fs,ui,nbi}    
+    echo -e "${GREEN}================== Sukses genieACS CWMP, FS, NBI, UI ==================${NC}"
+else
+    echo -e "${GREEN}============================================================================${NC}"
+    echo -e "${GREEN}=================== GenieACS sudah terinstall sebelumnya. ==================${NC}"
+fi
 
-for service in cwmp nbi fs ui; do
-    run_command "systemctl enable genieacs-$service && systemctl start genieacs-$service" "Enabling and starting genieacs-$service ($(( ++current_step ))/$total_steps)"
-done
-
-echo -e "\n${MAGENTA}${BOLD}Checking services status:${NC}"
-for service in mongod genieacs-cwmp genieacs-nbi genieacs-fs genieacs-ui; do
-    status=$(systemctl is-active $service)
-    if [ "$status" = "active" ]; then
-        echo -e "${GREEN}✔ $service is running${NC}"
-    else
-        echo -e "${RED}✘ $service is not running${NC}"
-    fi
-done
-
-echo -e "\n${GREEN}${BOLD}Script execution completed successfully!${NC}"
-
-# Konfirmasi restore parameter
+#Sukses
+echo -e "${GREEN}============================================================================${NC}"
+echo -e "${GREEN}========== GenieACS UI akses port 3000. : http://$local_ip:3000 ============${NC}"
+echo -e "${GREEN}=================== Informasi: Whatsapp 081947215703 =======================${NC}"
+echo -e "${GREEN}============================================================================${NC}"
+cp -r app-LU66VFYW.css /usr/lib/node_modules/genieacs/public/
+cp -r logo-3976e73d.svg /usr/lib/node_modules/genieacs/public/
 echo -e "${GREEN}Sekarang install parameter. Apakah anda ingin melanjutkan? (y/n)${NC}"
 read confirmation
+
 if [ "$confirmation" != "y" ]; then
-    echo -e "${GREEN}Install parameter dibatalkan..${NC}"
+    echo -e "${GREEN}Install dibatalkan..${NC}"
+    
     exit 1
 fi
 for ((i = 5; i >= 1; i--)); do
@@ -213,15 +200,32 @@ for ((i = 5; i >= 1; i--)); do
     echo "Lanjut Install Parameter $i. Tekan ctrl+c untuk membatalkan"
 done
 
-cd
-run_command "mongodump --db=genieacs --out genieacs-backup" "Backup database GenieACS (mongodump)"
-run_command "mongorestore --db=genieacs --drop genieacs" "Restore parameter database GenieACS (mongorestore)"
+mkdir /root/db
+cp cache.bson /root/db
+cp cache.metadata.json /root/db
+cp config.bson /root/db
+cp config.metadata.json /root/db
+cp permissions.bson /root/db
+cp permissions.json /root/db
+cp presets.bson /root/db
+cp presets.metadata.json /root/db
+cp provisions.bson /root/db
+cp profisions.metadata.json /root/db
+cp users.bson /root/db
+cp users.metadata.json /root/db
+cp tasks.bson /root/db
+cp tasks.metadata.json /root/db
+cp virtualParameters.bson /root/db
+cp virtualParameters.metadata.json /root/db
+cd 
+sudo mongodump --db=genieacs --out genieacs-backup
+mongorestore --db genieacs --drop /root/db
+echo -e "${GREEN}============================================================================${NC}"
+echo -e "${GREEN}=================== VIRTUAL PARAMETER BERHASIL DI INSTALL. =================${NC}"
+echo -e "${GREEN}===Jika ACS URL berbeda, silahkan edit di Admin >> Provosions >> inform ====${NC}"
+echo -e "${GREEN}========== GenieACS UI akses port 3000. : http://$local_ip:3000 ============${NC}"
+echo -e "${GREEN}=================== Informasi: Whatsapp 081947215703 =======================${NC}"
+echo -e "${GREEN}============================================================================${NC}"
 
-cat << EOF
-${GREEN}============================================================================${NC}
-${GREEN}=================== VIRTUAL PARAMETER BERHASIL DI INSTALL. =================${NC}
-${GREEN}===Jika ACS URL berbeda, silahkan edit di Admin >> Provisions >> inform ====${NC}
-${GREEN}========== GenieACS UI akses port 3000. : http://$local_ip:3000 ============${NC}
-${GREEN}=================== Informasi: Whatsapp 081947215703 =======================${NC}
-${GREEN}============================================================================${NC}
-EOF
+cd
+sudo rm -r genieacs
