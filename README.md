@@ -15,7 +15,7 @@ cd genieacs
 chmod +x Installer-GenieACS.sh && chmod +x darkmode.sh
 ```
 ```
-chmod +x Install.sh
+chmod +x INSTALL.sh && chmod +x install.sh
 ```
 INSTALL GENIEACS DARKMODE Ubuntu OS 22.04
 ```
@@ -23,7 +23,7 @@ bash darkmode.sh
 ```
 INSTALL by Gangtikus.net
 ```
-bash Installer-GenieACS.sh
+bash INSTALL.sh
 ```
 INSTALL GENIEACS THEMA ORIGINAL v@1.2.13
 ```
