@@ -200,26 +200,8 @@ for ((i = 5; i >= 1; i--)); do
     echo "Lanjut Install Parameter $i. Tekan ctrl+c untuk membatalkan"
 done
 
-mkdir /root/db
-cp cache.bson /root/db
-cp cache.metadata.json /root/db
-cp config.bson /root/db
-cp config.metadata.json /root/db
-cp permissions.bson /root/db
-cp permissions.json /root/db
-cp presets.bson /root/db
-cp presets.metadata.json /root/db
-cp provisions.bson /root/db
-cp profisions.metadata.json /root/db
-cp users.bson /root/db
-cp users.metadata.json /root/db
-cp tasks.bson /root/db
-cp tasks.metadata.json /root/db
-cp virtualParameters.bson /root/db
-cp virtualParameters.metadata.json /root/db
-cd 
 sudo mongodump --db=genieacs --out genieacs-backup
-mongorestore --db genieacs --drop /root/db
+mongorestore --db genieacs --drop db
 echo -e "${GREEN}============================================================================${NC}"
 echo -e "${GREEN}=================== VIRTUAL PARAMETER BERHASIL DI INSTALL. =================${NC}"
 echo -e "${GREEN}===Jika ACS URL berbeda, silahkan edit di Admin >> Provosions >> inform ====${NC}"
