@@ -201,6 +201,8 @@ done
 
 sudo mongodump --db=genieacs --out genieacs-backup
 mongorestore --db genieacs --drop db
+systemctl stop --now genieacs-{cwmp,fs,ui,nbi}
+systemctl start --now genieacs-{cwmp,fs,ui,nbi}
 echo -e "${GREEN}============================================================================${NC}"
 echo -e "${GREEN}=================== VIRTUAL PARAMETER BERHASIL DI INSTALL. =================${NC}"
 echo -e "${GREEN}===Jika ACS URL berbeda, silahkan edit di Admin >> Provosions >> inform ====${NC}"
