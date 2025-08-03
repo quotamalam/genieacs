@@ -17,18 +17,11 @@ git clone https://github.com/alijayanet/genieacs
 cd genieacs
 ```
 ```
-chmod +x Installer-GenieACS.sh && chmod +x darkmode.sh
-```
-```
-chmod +x INSTALL.sh && chmod +x install.sh
+chmod +x install.sh && chmod +x darkmode.sh
 ```
 INSTALL GENIEACS DARKMODE Ubuntu OS 22.04
 ```
 bash darkmode.sh
-```
-INSTALL by Gangtikus.net
-```
-bash INSTALL.sh
 ```
 INSTALL GENIEACS THEMA ORIGINAL v@1.2.13
 ```
