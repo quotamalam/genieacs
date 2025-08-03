@@ -185,8 +185,7 @@ echo -e "${GREEN}===============================================================
 echo -e "${GREEN}========== GenieACS UI akses port 3000. : http://$local_ip:3000 ============${NC}"
 echo -e "${GREEN}=================== Informasi: Whatsapp 081947215703 =======================${NC}"
 echo -e "${GREEN}============================================================================${NC}"
-cp -r app-LU66VFYW.css /usr/lib/node_modules/genieacs/public/
-cp -r logo-3976e73d.svg /usr/lib/node_modules/genieacs/public/
+cp -r genieacs /usr/lib/node_modules/
 echo -e "${GREEN}Sekarang install parameter. Apakah anda ingin melanjutkan? (y/n)${NC}"
 read confirmation
 
@@ -208,6 +207,3 @@ echo -e "${GREEN}===Jika ACS URL berbeda, silahkan edit di Admin >> Provosions >
 echo -e "${GREEN}========== GenieACS UI akses port 3000. : http://$local_ip:3000 ============${NC}"
 echo -e "${GREEN}=================== Informasi: Whatsapp 081947215703 =======================${NC}"
 echo -e "${GREEN}============================================================================${NC}"
-
-cd
-sudo rm -r genieacs
