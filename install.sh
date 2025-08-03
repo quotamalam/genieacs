@@ -155,3 +155,25 @@ echo -e "${GREEN}===============================================================
 echo -e "${GREEN}========== GenieACS UI akses port 3000. : http://$local_ip:3000 ============${NC}"
 echo -e "${GREEN}=================== Informasi: Whatsapp 081947215703 =======================${NC}"
 echo -e "${GREEN}============================================================================${NC}"
+echo -e "${GREEN}Sekarang install parameter. Apakah anda ingin melanjutkan? (y/n)${NC}"
+read confirmation
+
+if [ "$confirmation" != "y" ]; then
+    echo -e "${GREEN}Install dibatalkan..${NC}"
+    
+    exit 1
+fi
+for ((i = 5; i >= 1; i--)); do
+    sleep 1
+    echo "Lanjut Install Parameter $i. Tekan ctrl+c untuk membatalkan"
+done
+
+mongorestore --db genieacs --drop db
+systemctl stop --now genieacs-{cwmp,fs,ui,nbi}
+systemctl start --now genieacs-{cwmp,fs,ui,nbi}
+echo -e "${GREEN}============================================================================${NC}"
+echo -e "${GREEN}=================== VIRTUAL PARAMETER BERHASIL DI INSTALL. =================${NC}"
+echo -e "${GREEN}===Jika ACS URL berbeda, silahkan edit di Admin >> Provosions >> inform ====${NC}"
+echo -e "${GREEN}========== GenieACS UI akses port 3000. : http://$local_ip:3000 ============${NC}"
+echo -e "${GREEN}=================== Informasi: Whatsapp 081947215703 =======================${NC}"
+echo -e "${GREEN}============================================================================${NC}"
