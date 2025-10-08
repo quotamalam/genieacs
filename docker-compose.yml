@@ -1,0 +1,39 @@
+version: "3.8"
+
+services:
+  mongo:
+    image: mongo:6.0
+    container_name: genieacs-mongo
+    restart: always
+    volumes:
+      - mongo_data:/data/db
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: genieacs-rabbitmq
+    restart: always
+    ports:
+      - "15672:15672"
+      - "5672:5672"
+
+  genieacs:
+    build: https://github.com/quotamalam/genieacs.git
+    container_name: genieacs
+    depends_on:
+      - mongo
+      - rabbitmq
+    restart: always
+    ports:
+      - "7547:7547"
+      - "7557:7557"
+      - "7567:7567"
+      - "3000:3000"
+    environment:
+      GENIEACS_MONGODB_URL: mongodb://mongo:27017/genieacs
+      GENIEACS_RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      GENIEACS_UI_JWT_SECRET: quotamalam-secret
+      GENIEACS_UI_TITLE: "GenieACS Dark - QuotaMalam"
+      GENIEACS_DEBUG: "true"
+
+volumes:
+  mongo_data:
